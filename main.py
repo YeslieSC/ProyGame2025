@@ -7,10 +7,11 @@
 # El numero de muertes se guarda en una base de datos por nombre
 # Movimiento con teclas WASD
 # Disparo con click izquierdo
+# Objetivo: llegar a la salida
+
 import sqlite3
 import pygame
 import sys
-import time
 
 pygame.init()
 
@@ -44,7 +45,7 @@ bullet_speed = 12
 total_bullets_fired = 0
 max_bullets_total = 5
 
-# Spritesheets
+# spritesheets
 villano_spritesheet = pygame.image.load("villanos.png").convert_alpha()
 villano_frame_width = 134
 villano_frame_height = 124
@@ -152,7 +153,7 @@ def draw_name_input():
     txt_surf = font.render(display_text, True, color)
     screen.blit(txt_surf, (box_x + 10, box_y + (box_h - txt_surf.get_height()) // 2))
 
-    # ursor parpadeante
+    # cursor parpadeante
     if cursor_visible and name_text != "":
         cursor_x = box_x + 10 + txt_surf.get_width() + 2
         cursor_y = box_y + 10
@@ -160,7 +161,7 @@ def draw_name_input():
         pygame.draw.rect(screen, (255, 255, 255), (cursor_x, cursor_y, 2, cursor_h))
 
     # indicaciones
-    hint = font.render("Enter para confirmar, Backspace para borrar", True, (180, 180, 180))
+    hint = font.render("Enter para confirmar", True, (180, 180, 180))
     screen.blit(hint, (width // 2 - hint.get_width() // 2, box_y + box_h + 10))
 
     pygame.display.flip()
@@ -215,7 +216,7 @@ def reset_for_retry():
     game_over = False
     won = False
 
-# Bucle principal
+# bucle principal
 while running:
     dt = clock.tick(60) / 1000.0  # segundos desde el ultimo frame
 
@@ -384,7 +385,7 @@ while running:
             villano["x"] = max(0, min(villano["x"], width - villano_frame_width))
             villano["y"] = max(0, min(villano["y"], height - villano_frame_height))
         else:
-            # mantienen su posición superior (ya están en top)
+            # mantienen su posicion superior (ya estan en top)
             pass
 
         # animacion del villano
@@ -452,7 +453,7 @@ while running:
     seconds_left = max(0, (pursue_delay_ms - elapsed_ms + 999) // 1000)
     draw_hud(player_name if player_name else "Anon", remaining_bullets, deaths, pursuing, seconds_left)
 
-    # mensaje de victoria si todos los villanos están muertos
+    # mensaje de victoria si todos los villanos estan muertos
     if all(not v["alive"] for v in villanos) and not won:
         win_surf = font.render("¡Has eliminado a todos los villanos!", True, (180, 255, 180))
         screen.blit(win_surf, (width // 2 - win_surf.get_width() // 2, height // 2 - 10))
