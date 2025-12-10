@@ -95,6 +95,9 @@ python main.py
 
 ## Gameplay
 
+<img src="Inicio%20del%20juego.png" alt="Inicio del juego" width="400">
+<img src="Persecucion.png" alt="Persecución" width="400">
+
 ### Objetivo
 Llega a la salida (rectángulo blanco en la parte superior) sin morir más de una vez.
 
@@ -168,3 +171,4 @@ Proyecto académico para la materia de Graficación.
 
 Para preguntas o sugerencias, contacta al autor del proyecto.
 hw4400sc@gmail.com
+
