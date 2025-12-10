@@ -8,7 +8,6 @@
 # Movimiento con teclas WASD
 # Disparo con click izquierdo
 # Objetivo: llegar a la salida
-
 import sqlite3
 import pygame
 import sys
@@ -32,9 +31,16 @@ cursor.execute("""
 CREATE TABLE IF NOT EXISTS jugadores (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre TEXT NOT NULL UNIQUE,
-    muertes INTEGER NOT NULL
+    muertes INTEGER NOT NULL,
+    victorias INTEGER NOT NULL DEFAULT 0
 )
 """)
+# asegurar la columna victorias
+try:
+    cursor.execute("ALTER TABLE jugadores ADD COLUMN victorias INTEGER NOT NULL DEFAULT 0")
+    conn.commit()
+except sqlite3.OperationalError:
+    pass
 
 # variables de juego por defecto
 deaths = 0  # conteo de muertes del jugador
@@ -49,7 +55,7 @@ max_bullets_total = 5
 villano_spritesheet = pygame.image.load("villanos.png").convert_alpha()
 villano_frame_width = 134
 villano_frame_height = 124
-villano_speed = 3  # velocidad de persecucion
+villano_speed = 5  # velocidad de persecucion
 
 vaquero_spritesheet = pygame.image.load("vaquero.png").convert_alpha()
 frame_width = 48
@@ -106,6 +112,21 @@ def reset_all_villanos():
         v["y"] = top_y + (idx % 2) * 10
         v["frame"] = 0
 
+def draw_players_list():
+    screen.fill((29, 41, 61))
+    title = big_font.render("Jugadores guardados", True, (255, 255, 255))
+    screen.blit(title, (width // 2 - title.get_width() // 2, 20))
+
+    cursor.execute("SELECT id, nombre, muertes, victorias FROM jugadores")
+    jugadores = cursor.fetchall()
+
+    y = 80
+    for (jid, nombre, muertes, victorias) in jugadores:
+        text = f"{jid}. {nombre} | Muertes: {muertes} | Victorias: {victorias}"
+        surf = font.render(text, True, (200, 200, 200))
+        screen.blit(surf, (40, y))
+        y += 25
+
 # reloj y estado
 running = True
 clock = pygame.time.Clock()
@@ -136,18 +157,35 @@ quit_button = pygame.Rect(width // 2 + 20, height // 2 + 20, button_w, button_h)
 
 # funciones auxiliares
 def draw_name_input():
+    # Fondo
     screen.fill((29, 41, 61))
-    title_surf = title_font.render("Introduce tu nombre", True, (255, 255, 255))
-    screen.blit(title_surf, (width // 2 - title_surf.get_width() // 2, 60))
 
-    # Caja de texto
+    # Lista de jugadores guardados
+    title = big_font.render("Jugadores guardados", True, (255, 255, 255))
+    screen.blit(title, (width // 2 - title.get_width() // 2, 20))
+
+    cursor.execute("SELECT id, nombre, muertes, victorias FROM jugadores")
+    jugadores = cursor.fetchall()
+
+    y = 80
+    for (jid, nombre, muertes, victorias) in jugadores:
+        text = f"{jid}. {nombre} | Muertes: {muertes} | Victorias: {victorias}"
+        surf = font.render(text, True, (200, 200, 200))
+        screen.blit(surf, (40, y))
+        y += 25
+
+    # Caja de texto para nombre
     box_w, box_h = min(520, width - 40), 50
     box_x = width // 2 - box_w // 2
     box_y = height // 2 - box_h // 2
     pygame.draw.rect(screen, (230, 230, 230), (box_x - 2, box_y - 2, box_w + 4, box_h + 4))  # borde
     pygame.draw.rect(screen, (20, 20, 30), (box_x, box_y, box_w, box_h))  # fondo caja
 
-    # texto dentro de la caja
+    # Texto de instrucción
+    title_surf = title_font.render("Introduce tu nombre", True, (255, 255, 255))
+    screen.blit(title_surf, (width // 2 - title_surf.get_width() // 2, box_y - 40))
+
+    # Texto dentro de la caja
     display_text = name_text if name_text != "" else "Escribe aquí..."
     color = (255, 255, 255) if name_text != "" else (150, 150, 150)
     txt_surf = font.render(display_text, True, color)
@@ -290,8 +328,8 @@ while running:
             running = False
             break
 
-        # manejar disparo
-        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+        # disparo permitido solo si ya paso el delay
+        if pursuing and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if total_bullets_fired < max_bullets_total:
                 mx, my = pygame.mouse.get_pos()
                 bullet_x = player_x + frame_width / 2
@@ -308,39 +346,40 @@ while running:
                 total_bullets_fired += 1
 
     # movimiento del jugador con teclado
-    keys = pygame.key.get_pressed()
-    moved = False
-    if keys[pygame.K_a]:
-        player_x -= move_speed
-        row = 1
-        moved = True
-    if keys[pygame.K_d]:
-        player_x += move_speed
-        row = 2
-        moved = True
-    if keys[pygame.K_w]:
-        player_y -= move_speed
-        row = 3
-        moved = True
-    if keys[pygame.K_s]:
-        player_y += move_speed
-        row = 0
-        moved = True
+    if pursuing:  # movimiento permitido solo si ya pasó el delay
+        keys = pygame.key.get_pressed()
+        moved = False
+        if keys[pygame.K_a]:
+            player_x -= move_speed
+            row = 1
+            moved = True
+        if keys[pygame.K_d]:
+            player_x += move_speed
+            row = 2
+            moved = True
+        if keys[pygame.K_w]:
+            player_y -= move_speed
+            row = 3
+            moved = True
+        if keys[pygame.K_s]:
+            player_y += move_speed
+            row = 0
+            moved = True
 
-    # limitar al area de juego
-    player_x = max(0, min(player_x, width - frame_width))
-    player_y = max(0, min(player_y, height - frame_height))
+        # limitar al area de juego
+        player_x = max(0, min(player_x, width - frame_width))
+        player_y = max(0, min(player_y, height - frame_height))
 
-    # animacion del jugador
-    if moved:
-        frame_count += 1
-        if frame_count >= 10:
-            col = (col + 1) % max_frames
-            frame_count = 0
-    else:
-        col = 0
-    frame_rect.x = col * frame_width
-    frame_rect.y = row * frame_height
+        # animacion del jugador
+        if moved:
+            frame_count += 1
+            if frame_count >= 10:
+                col = (col + 1) % max_frames
+                frame_count = 0
+        else:
+            col = 0
+        frame_rect.x = col * frame_width
+        frame_rect.y = row * frame_height
 
     # fondo
     screen.fill((29, 41, 61))
@@ -464,12 +503,15 @@ while running:
 try:
     if player_name is None or player_name == "":
         player_name = "Anon"
+    victorias = 1 if won else 0
     cursor.execute("""
-    INSERT INTO jugadores (nombre, muertes) VALUES (?, ?)
-    ON CONFLICT(nombre) DO UPDATE SET muertes = jugadores.muertes + excluded.muertes
-    """, (player_name, deaths))
+    INSERT INTO jugadores (nombre, muertes, victorias) VALUES (?, ?, ?)
+    ON CONFLICT(nombre) DO UPDATE SET
+        muertes = jugadores.muertes + excluded.muertes,
+        victorias = jugadores.victorias + excluded.victorias
+    """, (player_name, deaths, victorias))
     conn.commit()
-    print(f"Guardadas {deaths} muertes para {player_name}")
+    print(f"Guardadas {deaths} muertes y {victorias} victorias para {player_name}")
 except Exception as e:
     print("Error guardando en DB:", e)
 finally:
